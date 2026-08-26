@@ -3,6 +3,7 @@
 #import "Logger.h"
 #import <objc/message.h>
 #import <spawn.h>
+#import <string.h>
 #import <sys/utsname.h>
 #import <dlfcn.h>
 
@@ -520,10 +521,9 @@ BOOL isRNNewArchEnabled(void) {
 }
 
 BOOL isHermesBytecode(NSData *data) {
-    if (!data || data.length < 4) {
+    static const uint8_t magic[] = {0xc6, 0x1f, 0xbc, 0x03, 0xc1, 0x03, 0x19, 0x1f};
+    if (!data || data.length < sizeof(magic)) {
         return NO;
     }
-    const uint8_t *bytes = (const uint8_t *)data.bytes;
-    // Hermes bytecode magic: "Herm" (0x48 0x65 0x72 0x6d)
-    return bytes[0] == 0x48 && bytes[1] == 0x65 && bytes[2] == 0x72 && bytes[3] == 0x6d;
+    return memcmp(data.bytes, magic, sizeof(magic)) == 0;
 }
