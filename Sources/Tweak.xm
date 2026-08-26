@@ -13,6 +13,7 @@
 #import "RCTInstance.h"
 #import "Fonts.h"
 #import "Settings.h"
+#import "Telemetry.h"
 
 using namespace facebook;
 
@@ -54,6 +55,10 @@ static NSData *patchRainSourceCompatibility(NSData *data)
             @"i18n = findByProps(\"Messages\") ?? { Messages: {} };",
         @"get \"customeffects\"() {" :
             @"get \"customeffects\"() { return null;",
+        @"var analyticsTest = /client-analytics\\.braintreegateway\\.com|discord\\.com\\/api\\/v9\\/(science|track)|app\\.adjust\\..*|.*\\.ingest\\.sentry\\.io/;" :
+            @"var analyticsTest = /client-analytics\\.braintreegateway\\.com|discord(?:app)?\\.com\\/api(?:\\/v\\d+)?\\/(science|track)|app\\.adjust\\..*|.*appsflyer.*|.*\\.ingest\\.sentry\\.io|datadog\\.discord\\.tools/;",
+        @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers)," :
+            @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers),\n      AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleSetAnalyticsToken\", AnalyticsUtils.AnalyticsActionHandlers),",
     };
 
     __block NSUInteger replacements = 0;
@@ -405,6 +410,8 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
 {
     @autoreleasepool
     {
+        RainInstallTelemetryKillSwitch();
+
         BOOL newArchEnabled = YES;
         @try {
             id rawVal = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"RCTNewArchEnabled"];
