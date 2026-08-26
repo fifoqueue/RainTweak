@@ -46,6 +46,10 @@ static NSData *patchRainSourceCompatibility(NSData *data)
             @"findProp(\"Card\", \"InternalCard\")",
         @"findByProps(\"Card\")" :
             @"findByProps(\"Card\", \"InternalCard\")",
+        @"var version = getDebugInfo().discord.build;" :
+            @"var version = getDebugInfo().discord.build;\n    if (version === \"108502\") return;",
+        @"HeaderAvatar2 = findByName(\"HeaderAvatar\", false);" :
+            @"HeaderAvatar2 = findByFilePath(\"modules/profile_customization/native/HeaderAvatar.tsx\", true) ?? findByName(\"HeaderAvatar\", false);",
     };
 
     __block NSUInteger replacements = 0;
