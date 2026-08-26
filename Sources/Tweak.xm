@@ -44,12 +44,16 @@ static NSData *patchRainSourceCompatibility(NSData *data)
             @"findSingular = (prop) => proxyLazy(() => findExports(bySingularProp(prop))?.[prop] ?? findByProps(prop)?.[prop]);",
         @"var { render: PageComponent, ...args } = route.params;" :
             @"var { render: PageComponent, ...args } = route.params ?? {};",
-        @"return /* @__PURE__ */ jsx(PageComponent, {});" :
-            @"return /* @__PURE__ */ jsx(window.ReactNative.View, { collapsable: false, style: { flex: 1 }, children: /* @__PURE__ */ jsx(ErrorBoundary ?? React.Fragment, { children: PageComponent ? /* @__PURE__ */ jsx(PageComponent, {}) : /* @__PURE__ */ jsx(window.ReactNative.Text, { children: \"Rain route parameters missing\" }) }) });",
+        @"CustomPageRenderer = React.memo(() => {" :
+            @"CustomPageRenderer = React.memo(React.forwardRef((props, ref) => {",
+        @"return /* @__PURE__ */ jsx(PageComponent, {});\n      });" :
+            @"return /* @__PURE__ */ jsx(window.ReactNative.View, { ref: ref, collapsable: false, style: { flex: 1 }, children: /* @__PURE__ */ jsx(ErrorBoundary ?? React.Fragment, { children: PageComponent ? /* @__PURE__ */ jsx(PageComponent, {}) : /* @__PURE__ */ jsx(window.ReactNative.Text, { children: \"Rain route parameters missing\" }) }) });\n      }));",
+        @"function ErrorCard(props) {\n    return /* @__PURE__ */ jsx(Card, {" :
+            @"function ErrorCard(props) {\n    return /* @__PURE__ */ jsx(window.ReactNative.View, { style: { padding: 16 },",
         @"[row.key]: {\n        type: \"pressable\"," :
             @"[row.key]: {\n        type: row.render ? \"route\" : \"pressable\",",
         @"onPress: wrapOnPress(row.onPress, null, row.render, row.title())," :
-            @"onPress: row.render ? void 0 : wrapOnPress(row.onPress, null, row.render, row.title()),\n        screen: row.render ? { route: row.key, getComponent: () => { var Page = React.lazy(row.render); return () => jsx(window.ReactNative.View, { collapsable: false, style: { flex: 1 }, children: jsx(ErrorBoundary ?? React.Fragment, { children: jsx(Page, {}) }) }); } } : void 0,",
+            @"onPress: row.render ? void 0 : wrapOnPress(row.onPress, null, row.render, row.title()),\n        screen: row.render ? { route: row.key, getComponent: () => { var Page = React.lazy(row.render); return React.forwardRef((props, ref) => jsx(window.ReactNative.View, { ref: ref, collapsable: false, style: { flex: 1 }, children: jsx(ErrorBoundary ?? React.Fragment, { children: jsx(Page, {}) }) })); } } : void 0,",
     };
 
     __block NSUInteger replacements = 0;
