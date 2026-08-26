@@ -39,15 +39,25 @@ static NSData *patchRainSourceCompatibility(NSData *data)
     NSMutableString *source = [[NSMutableString alloc] initWithData:data encoding:NSUTF8StringEncoding];
     if (!source) return data;
 
-    NSString *needle = @"TableSwitch = findSingular(\"FormSwitch\");";
-    NSString *replacement = @"TableSwitch = proxyLazy(() => findByProps(\"FormSwitch\")?.FormSwitch ?? window.ReactNative.Switch);";
-    NSUInteger replacements = [source replaceOccurrencesOfString:needle
-                                                       withString:replacement
-                                                          options:0
-                                                            range:NSMakeRange(0, source.length)];
+    NSDictionary<NSString *, NSString *> *patches = @{
+        @"findSingular = (prop) => proxyLazy(() => findExports(bySingularProp(prop))?.[prop]);" :
+            @"findSingular = (prop) => proxyLazy(() => findExports(bySingularProp(prop))?.[prop] ?? findByProps(prop)?.[prop]);",
+        @"var { render: PageComponent, ...args } = route.params;" :
+            @"var { render: PageComponent, ...args } = route.params ?? {};",
+        @"return /* @__PURE__ */ jsx(PageComponent, {});" :
+            @"return /* @__PURE__ */ jsx(ErrorBoundary ?? React.Fragment, { children: PageComponent ? /* @__PURE__ */ jsx(PageComponent, {}) : /* @__PURE__ */ jsx(window.ReactNative.Text, { children: \"Rain route parameters missing\" }) });",
+    };
+
+    __block NSUInteger replacements = 0;
+    [patches enumerateKeysAndObjectsUsingBlock:^(NSString *needle, NSString *replacement, BOOL *stop) {
+        replacements += [source replaceOccurrencesOfString:needle
+                                                withString:replacement
+                                                   options:0
+                                                     range:NSMakeRange(0, source.length)];
+    }];
     if (replacements == 0) return data;
 
-    BunnyLog(@"Applied Discord 342 Rain Plugins compatibility patch");
+    BunnyLog(@"Applied %lu Discord 342 Rain compatibility patches", (unsigned long)replacements);
     return [source dataUsingEncoding:NSUTF8StringEncoding];
 }
 
