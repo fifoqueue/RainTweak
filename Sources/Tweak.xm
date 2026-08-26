@@ -48,8 +48,12 @@ static NSData *patchRainSourceCompatibility(NSData *data)
             @"findByProps(\"Card\", \"InternalCard\")",
         @"var version = getDebugInfo().discord.build;" :
             @"var version = getDebugInfo().discord.build;\n    if (version === \"108502\") return;",
-        @"HeaderAvatar2 = findByName(\"HeaderAvatar\", false);" :
-            @"HeaderAvatar2 = findByFilePath(\"modules/profile_customization/native/HeaderAvatar.tsx\") ?? findByName(\"HeaderAvatar\", false);",
+        @"findExports(expDefault ? byName(name) : byName.byRaw(name))" :
+            @"findExports(expDefault ? byName(name) : byName.byRaw(name)) ?? (name === \"HeaderAvatar\" ? findByFilePath(\"modules/profile_customization/native/HeaderAvatar.tsx\", expDefault) : void 0)",
+        @"i18n = findByPropsLazy(\"Messages\");" :
+            @"i18n = findByProps(\"Messages\") ?? { Messages: {} };",
+        @"get \"customeffects\"() {" :
+            @"get \"customeffects\"() { return null;",
     };
 
     __block NSUInteger replacements = 0;
