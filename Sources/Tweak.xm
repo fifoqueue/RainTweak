@@ -59,6 +59,8 @@ static NSData *patchRainSourceCompatibility(NSData *data)
             @"var analyticsTest = /client-analytics\\.braintreegateway\\.com|discord(?:app)?\\.com\\/api(?:\\/v\\d+)?\\/(science|track)|app\\.adjust\\..*|.*appsflyer.*|.*\\.ingest\\.sentry\\.io|datadog\\.discord\\.tools/;",
         @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers)," :
             @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers),\n      AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleSetAnalyticsToken\", AnalyticsUtils.AnalyticsActionHandlers),",
+        @"function unpatchAvatar() {\n    return after(\"default\", HeaderAvatar2," :
+            @"function unpatchAvatar() {\n    var target = HeaderAvatar2?.default?.render ? HeaderAvatar2.default : HeaderAvatar2;\n    return after(target?.render ? \"render\" : \"default\", target,",
     };
 
     __block NSUInteger replacements = 0;
