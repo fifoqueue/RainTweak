@@ -29,7 +29,7 @@ static NSURL *resolveDownloadURL(void)
     {
         return fresh.customLoadUrl;
     }
-    return [NSURL URLWithString:@"https://codeberg.org/raincord/rain/releases/download/latest/rain.96.hbc"];
+    return [NSURL URLWithString:@"https://codeberg.org/raincord/rain/releases/download/latest/rain.js"];
 }
 
 static dispatch_queue_t fsQueue(void)
@@ -312,6 +312,15 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
 
     NSURL *bundleFileURL = [rainDir URLByAppendingPathComponent:@"bundle.js"];
     NSData *bundle = [NSData dataWithContentsOfURL:bundleFileURL];
+
+    if (bundle && !loaderConfig.customLoadUrlEnabled && isHermesBytecode(bundle))
+    {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        [fm removeItemAtURL:bundleFileURL error:nil];
+        [fm removeItemAtURL:[rainDir URLByAppendingPathComponent:@"etag.txt"] error:nil];
+        bundle = nil;
+        BunnyLog(@"Removed incompatible legacy Rain bytecode cache");
+    }
 
     if (bundle && bundle.length > 0)
     {
