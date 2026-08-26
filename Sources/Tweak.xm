@@ -61,6 +61,14 @@ static NSData *patchRainSourceCompatibility(NSData *data)
             @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers),\n      AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleSetAnalyticsToken\", AnalyticsUtils.AnalyticsActionHandlers),",
         @"function unpatchAvatar() {\n    return after(\"default\", HeaderAvatar2," :
             @"function unpatchAvatar() {\n    var target = HeaderAvatar2?.default?.render ? HeaderAvatar2.default : HeaderAvatar2;\n    return after(target?.render ? \"render\" : \"default\", target,",
+        @"var ChatInputActions, actionsRef, unpatches2, betterchatbuttons_default;" :
+            @"var ChatInputActions, ChatInputSendButton, ChatInputRightActions, actionsRef, unpatches2, betterchatbuttons_default;",
+        @"ChatInputActions = findByTypeDisplayName(\"ChatInputActions\");" :
+            @"ChatInputActions = findByTypeDisplayName(\"ChatInputActions\");\n      ChatInputSendButton = findByTypeDisplayName(\"ChatInputSendButton\");\n      ChatInputRightActions = findByTypeDisplayName(\"ChatInputRightActions\");",
+        @"id: \"betterchatbuttons\",\n        version: \"1.0.0\",\n        eagerStart() {" :
+            @"id: \"betterchatbuttons\",\n        version: \"1.1.0\",\n        eagerStart() { return;",
+        @"start() {\n          return _async_to_generator(function* () {\n            if (ChatInputActions?.type) {" :
+            @"start() {\n          return _async_to_generator(function* () {\n            if (ChatInputSendButton?.type) {\n              unpatches2.push(after(\"render\", ChatInputSendButton.type, (_args, tree) => {\n                var item = tree?.props?.children?.props?.items?.[0];\n                if (item && useBetterChatButtonsSettings.getState().hide?.voice) item.sendVoiceMessageEnabled = false;\n                return tree;\n              }));\n            }\n            if (ChatInputRightActions?.type) {\n              unpatches2.push(before(\"render\", ChatInputRightActions.type, ([props]) => {\n                if (props) props.shouldShowGiftButton = !useBetterChatButtonsSettings.getState().hide?.gift;\n              }));\n            }\n            if (ChatInputActions?.type) {",
     };
 
     __block NSUInteger replacements = 0;
