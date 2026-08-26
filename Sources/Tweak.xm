@@ -49,7 +49,7 @@ static NSData *patchRainSourceCompatibility(NSData *data)
         @"[row.key]: {\n        type: \"pressable\"," :
             @"[row.key]: {\n        type: row.render ? \"route\" : \"pressable\",",
         @"onPress: wrapOnPress(row.onPress, null, row.render, row.title())," :
-            @"onPress: row.render ? void 0 : wrapOnPress(row.onPress, null, row.render, row.title()),\n        screen: row.render ? { route: row.key, getComponent: () => React.lazy(row.render) } : void 0,",
+            @"onPress: row.render ? void 0 : wrapOnPress(row.onPress, null, row.render, row.title()),\n        screen: row.render ? { route: row.key, getComponent: () => { var Page = React.lazy(row.render); return () => jsx(ErrorBoundary ?? React.Fragment, { children: jsx(Page, {}) }); } } : void 0,",
     };
 
     __block NSUInteger replacements = 0;
