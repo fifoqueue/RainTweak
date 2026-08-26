@@ -32,6 +32,25 @@ static NSURL *resolveDownloadURL(void)
     return [NSURL URLWithString:@"https://codeberg.org/raincord/rain/releases/download/latest/rain.js"];
 }
 
+static NSData *patchRainSourceCompatibility(NSData *data)
+{
+    if (!data || isHermesBytecode(data)) return data;
+
+    NSMutableString *source = [[NSMutableString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (!source) return data;
+
+    NSString *needle = @"TableSwitch = findSingular(\"FormSwitch\");";
+    NSString *replacement = @"TableSwitch = proxyLazy(() => findByProps(\"FormSwitch\")?.FormSwitch ?? window.ReactNative.Switch);";
+    NSUInteger replacements = [source replaceOccurrencesOfString:needle
+                                                       withString:replacement
+                                                          options:0
+                                                            range:NSMakeRange(0, source.length)];
+    if (replacements == 0) return data;
+
+    BunnyLog(@"Applied Discord 342 Rain Plugins compatibility patch");
+    return [source dataUsingEncoding:NSUTF8StringEncoding];
+}
+
 static dispatch_queue_t fsQueue(void)
 {
     static dispatch_queue_t queue;
@@ -72,6 +91,7 @@ static void downloadBundleForNextLaunch(NSURL *rainDir)
             NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
             if (http.statusCode == 200 && data.length > 0)
             {
+                data = patchRainSourceCompatibility(data);
                 dispatch_sync(fsQueue(), ^{
                     [data writeToURL:bundleFileURL atomically:YES];
                     NSString *newEtag = [http valueForHTTPHeaderField:@"Etag"];
@@ -321,6 +341,8 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
         bundle = nil;
         BunnyLog(@"Removed incompatible legacy Rain bytecode cache");
     }
+
+    bundle = patchRainSourceCompatibility(bundle);
 
     if (bundle && bundle.length > 0)
     {
