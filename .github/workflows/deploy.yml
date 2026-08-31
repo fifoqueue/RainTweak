@@ -9,6 +9,11 @@ on:
         description: "Direct link to the decrypted IPA"
         required: true
         type: string
+      package_only:
+        default: false
+        description: "Build and upload the DEB without creating an IPA"
+        required: false
+        type: boolean
       release:
         description: "Release the build"
         required: true
@@ -23,6 +28,10 @@ on:
       ipa_url:
         required: true
         type: string
+      package_only:
+        required: false
+        type: boolean
+        default: false
       is_testflight:
         required: true
         type: boolean
@@ -51,7 +60,7 @@ jobs:
           submodules: true
 
       - name: Download Tweak
-        if: inputs.caller_workflow != 'ci'
+        if: inputs.caller_workflow != 'ci' && inputs.package_only != true
         run: |
           set +e
 
@@ -118,7 +127,7 @@ jobs:
           path: ${{ env.ROOTLESS_DEB_PATH }}
 
   build-ipa:
-    if: inputs.caller_workflow != 'ci'
+    if: inputs.caller_workflow != 'ci' && inputs.package_only != true
     runs-on: macos-15
     needs: build-tweak
 
