@@ -30,58 +30,7 @@ static NSURL *resolveDownloadURL(void)
     {
         return fresh.customLoadUrl;
     }
-    return [NSURL URLWithString:@"https://codeberg.org/raincord/rain/releases/download/latest/rain.js"];
-}
-
-static NSData *patchRainSourceCompatibility(NSData *data)
-{
-    if (!data || isHermesBytecode(data)) return data;
-
-    NSMutableString *source = [[NSMutableString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (!source) return data;
-
-    NSDictionary<NSString *, NSString *> *patches = @{
-        @"findSingular = (prop) => proxyLazy(() => findExports(bySingularProp(prop))?.[prop]);" :
-            @"findSingular = (prop) => proxyLazy(() => findExports(bySingularProp(prop))?.[prop] ?? findByProps(prop)?.[prop]);",
-        @"findProp(\"Card\")" :
-            @"findProp(\"Card\", \"InternalCard\")",
-        @"findByProps(\"Card\")" :
-            @"findByProps(\"Card\", \"InternalCard\")",
-        @"var version = getDebugInfo().discord.build;" :
-            @"var version = getDebugInfo().discord.build;\n    if (version === \"108502\") return;",
-        @"findExports(expDefault ? byName(name) : byName.byRaw(name))" :
-            @"findExports(expDefault ? byName(name) : byName.byRaw(name)) ?? (name === \"HeaderAvatar\" ? findByFilePath(\"modules/profile_customization/native/HeaderAvatar.tsx\", expDefault) : void 0)",
-        @"i18n = findByPropsLazy(\"Messages\");" :
-            @"i18n = findByProps(\"Messages\") ?? { Messages: {} };",
-        @"get \"customeffects\"() {" :
-            @"get \"customeffects\"() { return null;",
-        @"var analyticsTest = /client-analytics\\.braintreegateway\\.com|discord\\.com\\/api\\/v9\\/(science|track)|app\\.adjust\\..*|.*\\.ingest\\.sentry\\.io/;" :
-            @"var analyticsTest = /client-analytics\\.braintreegateway\\.com|discord(?:app)?\\.com\\/api(?:\\/v\\d+)?\\/(science|track)|app\\.adjust\\..*|.*appsflyer.*|.*\\.ingest\\.sentry\\.io|datadog\\.discord\\.tools/;",
-        @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers)," :
-            @"AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleFingerprint\", AnalyticsUtils.AnalyticsActionHandlers),\n      AnalyticsUtils?.AnalyticsActionHandlers && noop(\"handleSetAnalyticsToken\", AnalyticsUtils.AnalyticsActionHandlers),",
-        @"function unpatchAvatar() {\n    return after(\"default\", HeaderAvatar2," :
-            @"function unpatchAvatar() {\n    var target = HeaderAvatar2?.default?.render ? HeaderAvatar2.default : HeaderAvatar2;\n    return after(target?.render ? \"render\" : \"default\", target,",
-        @"var ChatInputActions, actionsRef, unpatches2, betterchatbuttons_default;" :
-            @"var ChatInputActions, ChatInputSendButton, ChatInputRightActions, actionsRef, unpatches2, betterchatbuttons_default;",
-        @"ChatInputActions = findByTypeDisplayName(\"ChatInputActions\");" :
-            @"ChatInputActions = findByTypeDisplayName(\"ChatInputActions\");\n      ChatInputSendButton = findByTypeDisplayName(\"ChatInputSendButton\");\n      ChatInputRightActions = findByTypeDisplayName(\"ChatInputRightActions\");",
-        @"id: \"betterchatbuttons\",\n        version: \"1.0.0\",\n        eagerStart() {" :
-            @"id: \"betterchatbuttons\",\n        version: \"1.1.0\",\n        eagerStart() { return;",
-        @"start() {\n          return _async_to_generator(function* () {\n            if (ChatInputActions?.type) {" :
-            @"start() {\n          return _async_to_generator(function* () {\n            if (ChatInputSendButton?.type) {\n              unpatches2.push(after(\"render\", ChatInputSendButton.type, (_args, tree) => {\n                var item = tree?.props?.children?.props?.items?.[0];\n                if (item && useBetterChatButtonsSettings.getState().hide?.voice) item.sendVoiceMessageEnabled = false;\n                return tree;\n              }));\n            }\n            if (ChatInputRightActions?.type) {\n              unpatches2.push(before(\"render\", ChatInputRightActions.type, ([props]) => {\n                if (props) props.shouldShowGiftButton = !useBetterChatButtonsSettings.getState().hide?.gift;\n              }));\n            }\n            if (ChatInputActions?.type) {",
-    };
-
-    __block NSUInteger replacements = 0;
-    [patches enumerateKeysAndObjectsUsingBlock:^(NSString *needle, NSString *replacement, BOOL *stop) {
-        replacements += [source replaceOccurrencesOfString:needle
-                                                withString:replacement
-                                                   options:0
-                                                     range:NSMakeRange(0, source.length)];
-    }];
-    if (replacements == 0) return data;
-
-    BunnyLog(@"Applied %lu Discord 342 Rain compatibility patches", (unsigned long)replacements);
-    return [source dataUsingEncoding:NSUTF8StringEncoding];
+    return [NSURL URLWithString:@"https://github.com/fifoqueue/rain/releases/latest/download/rain.js"];
 }
 
 static dispatch_queue_t fsQueue(void)
@@ -124,7 +73,6 @@ static void downloadBundleForNextLaunch(NSURL *rainDir)
             NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
             if (http.statusCode == 200 && data.length > 0)
             {
-                data = patchRainSourceCompatibility(data);
                 dispatch_sync(fsQueue(), ^{
                     [data writeToURL:bundleFileURL atomically:YES];
                     NSString *newEtag = [http valueForHTTPHeaderField:@"Etag"];
@@ -374,8 +322,6 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
         bundle = nil;
         BunnyLog(@"Removed incompatible legacy Rain bytecode cache");
     }
-
-    bundle = patchRainSourceCompatibility(bundle);
 
     if (bundle && bundle.length > 0)
     {
