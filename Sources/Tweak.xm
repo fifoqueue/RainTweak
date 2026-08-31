@@ -43,12 +43,18 @@ static dispatch_queue_t fsQueue(void)
     return queue;
 }
 
-static void downloadBundleForNextLaunch(NSURL *rainDir)
+typedef void (^DownloadCompletion)(BOOL success);
+
+static void downloadBundleForNextLaunch(NSURL *rainDir, DownloadCompletion completion)
 {
     NSURL *bundleFileURL = [rainDir URLByAppendingPathComponent:@"bundle.js"];
     NSURL *targetURL = resolveDownloadURL();
 
-    if (!targetURL) return;
+    if (!targetURL)
+    {
+        if (completion) completion(NO);
+        return;
+    }
 
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:targetURL
                                                        cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData
@@ -68,26 +74,39 @@ static void downloadBundleForNextLaunch(NSURL *rainDir)
     NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
     [[session dataTaskWithRequest:req
                 completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        __block BOOL success = NO;
         if ([response isKindOfClass:[NSHTTPURLResponse class]])
         {
             NSHTTPURLResponse *http = (NSHTTPURLResponse *)response;
             if (http.statusCode == 200 && data.length > 0)
             {
                 dispatch_sync(fsQueue(), ^{
-                    [data writeToURL:bundleFileURL atomically:YES];
-                    NSString *newEtag = [http valueForHTTPHeaderField:@"Etag"];
-                    if (newEtag)
-                        [newEtag writeToURL:etagFileURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
-                    else
-                        [fm removeItemAtURL:etagFileURL error:nil];
+                    success = [data writeToURL:bundleFileURL atomically:YES];
+                    if (success)
+                    {
+                        NSString *newEtag = [http valueForHTTPHeaderField:@"Etag"];
+                        if (newEtag)
+                            [newEtag writeToURL:etagFileURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
+                        else
+                            [fm removeItemAtURL:etagFileURL error:nil];
+                    }
                 });
             }
+            else if (http.statusCode == 304)
+            {
+                success = [fm fileExistsAtPath:bundleFileURL.path];
+            }
+            else
+            {
+                BunnyLog(@"downloadBundleForNextLaunch: HTTP %ld", (long)http.statusCode);
+            }
         }
-        else if (error)
+        if (error)
         {
             BunnyLog(@"downloadBundleForNextLaunch: Error: %@", error.localizedDescription);
         }
         [session finishTasksAndInvalidate];
+        if (completion) completion(success);
     }] resume];
 }
 
@@ -161,7 +180,7 @@ static NSDictionary<NSString *, BridgeHandler> *bridgeHandlers(void)
                 BunnyLog(@"[Updater] updater.download JSI bridge method called");
                 dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                     NSURL *rainDirectory = getRainDirectory();
-                    downloadBundleForNextLaunch(rainDirectory);
+                    downloadBundleForNextLaunch(rainDirectory, nil);
                 });
                 return [NSNull null];
             },
@@ -170,12 +189,16 @@ static NSDictionary<NSString *, BridgeHandler> *bridgeHandlers(void)
                 dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                     BunnyLog(@"[Updater] Explicit JSI download + reload started");
                     NSURL *rainDirectory = getRainDirectory();
-                    downloadBundleForNextLaunch(rainDirectory);
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        UIWindow *w = [UIApplication sharedApplication].windows.firstObject;
-                        if (w.rootViewController) {
-                            reloadApp(w.rootViewController);
+                    downloadBundleForNextLaunch(rainDirectory, ^(BOOL success) {
+                        if (!success)
+                        {
+                            BunnyLog(@"[Updater] Download failed; reload canceled");
+                            return;
                         }
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            UIWindow *w = [UIApplication sharedApplication].windows.firstObject;
+                            if (w.rootViewController) reloadApp(w.rootViewController);
+                        });
                     });
                 });
                 return [NSNull null];
@@ -330,7 +353,7 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
     }
     else
     {
-        downloadBundleForNextLaunch(rainDir);
+        downloadBundleForNextLaunch(rainDir, nil);
     }
 }
 
