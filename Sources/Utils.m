@@ -524,6 +524,14 @@ BOOL isHermesBytecode(NSData *data) {
         return NO;
     }
     const uint8_t *bytes = (const uint8_t *)data.bytes;
-    // Hermes bytecode magic: "Herm" (0x48 0x65 0x72 0x6d)
-    return bytes[0] == 0x48 && bytes[1] == 0x65 && bytes[2] == 0x72 && bytes[3] == 0x6d;
+    if (bytes[0] == 0xC6 && bytes[1] == 0x1F && bytes[2] == 0xBC && bytes[3] == 0x03) {
+        return YES;
+    }
+
+    if (bytes[0] > 0x7F) {
+        for (int i = 0; i < 4 && i < (int)data.length; i++) {
+            if (bytes[i] == 0x00) return YES;
+        }
+    }
+    return NO;
 }

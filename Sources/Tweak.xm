@@ -28,7 +28,7 @@ static NSURL *resolveDownloadURL(void)
     {
         return fresh.customLoadUrl;
     }
-    return [NSURL URLWithString:@"https://codeberg.org/raincord/rain/releases/download/latest/rain.96.hbc"];
+    return [NSURL URLWithString:@"https://codeberg.org/raincord/rain/releases/download/latest/rain.98.hbc"];
 }
 
 static dispatch_queue_t fsQueue(void)
