@@ -346,15 +346,27 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
         BunnyLog(@"Removed incompatible legacy Rain bytecode cache");
     }
 
+    BOOL needsDownload = !bundle;
+
+    if (!bundle)
+    {
+        NSURL *embeddedBundleURL = [[NSBundle bundleWithPath:bunnyPatchesBundlePath]
+            URLForResource:@"bundle" withExtension:@"js"];
+        if (embeddedBundleURL)
+        {
+            bundle = [NSData dataWithContentsOfURL:embeddedBundleURL];
+            if (bundle) BunnyLog(@"Loaded embedded Rain bundle");
+        }
+    }
+
     if (bundle && bundle.length > 0)
     {
         [JSI evaluate:bundle tag:@"rain:bundle" runtime:runtime];
         executePreloads(runtime, rainDir);
     }
-    else
-    {
+
+    if (needsDownload)
         downloadBundleForNextLaunch(rainDir, nil);
-    }
 }
 
 %end
