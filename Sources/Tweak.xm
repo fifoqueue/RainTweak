@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <MediaPlayer/MediaPlayer.h>
 #import <UIKit/UIKit.h>
 #import <jsi/jsi.h>
 #import <functional>
@@ -97,6 +98,55 @@ static NSDictionary<NSString *, BridgeHandler> *bridgeHandlers(void)
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         handlers = @{
+            @"applemusic.get": ^id(NSArray *args) {
+                MPMediaLibraryAuthorizationStatus authorization = [MPMediaLibrary authorizationStatus];
+
+                switch (authorization) {
+                    case MPMediaLibraryAuthorizationStatusNotDetermined:
+                        return @{
+                            @"authorization": @"notDetermined"
+                        };
+                    case MPMediaLibraryAuthorizationStatusDenied:
+                        return @{
+                            @"authorization": @"denied"
+                        };
+                    case MPMediaLibraryAuthorizationStatusRestricted:
+                        return @{
+                            @"authorization": @"restricted"
+                        };
+                    case MPMediaLibraryAuthorizationStatusAuthorized: {
+                        MPMusicPlayerController *player = [MPMusicPlayerController systemMusicPlayer];
+                        MPMediaItem *song = player.nowPlayingItem;
+
+                        if (player.playbackState == MPMusicPlaybackStatePlaying && song) {
+                            return @{
+                                @"authorization": @"authorized",
+                                @"playing": @YES,
+                                @"song": @{
+                                    @"title": song.title,
+                                    @"artist": song.artist,
+                                    @"album": song.albumTitle,
+                                    @"duration": @{
+                                        @"elapsed": @(player.currentPlaybackTime),
+                                        @"total": @(song.playbackDuration)
+                                    }
+                                }
+                            };
+                        } else {
+                            return @{
+                                @"authorization": @"authorized",
+                                @"playing": @NO
+                            };
+                        }
+                    }
+                }
+            },
+
+            @"applemusic.request": ^id(NSArray *args) {
+                [MPMediaLibrary requestAuthorization:^(MPMediaLibraryAuthorizationStatus status) {}];
+                return [NSNull null];
+            },
+
             @"updater.clear": ^id(NSArray *args) {
                 NSURL *rainDirectory = getRainDirectory();
                 NSFileManager *fm = [NSFileManager defaultManager];
@@ -147,7 +197,7 @@ static NSDictionary *callBridgeMethodHelper(NSString *methodName, NSArray *args)
         dispatch_sync(fsQueue(), ^{
             handlerResult = handler(args);
         });
-        
+
         id responseVal = (handlerResult == nil) ? [NSNull null] : handlerResult;
         return @{@"result": responseVal};
     }
