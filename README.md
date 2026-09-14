@@ -5,6 +5,7 @@ Tweak to inject Rain into discord
 ## Installation
 
 The latest builds can be found in the [Releases](https://codeberg.org/raincord/RainTweak/releases) tab.
+**iOS 27 is NOT officially supported, you will encounter bugs**
 
 <details>
 <summary>Issues & Workaround</summary>

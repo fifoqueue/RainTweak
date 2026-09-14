@@ -101,7 +101,7 @@ static BOOL isSelfCall(void)
 
     NSDictionary *origResult = %orig;
     NSMutableDictionary *info = [origResult mutableCopy];
-    
+
     info[@"CFBundleIdentifier"]  = DISCORD_BUNDLE_ID;
     info[@"CFBundleDisplayName"] = DISCORD_NAME;
     info[@"CFBundleName"]        = DISCORD_NAME;
