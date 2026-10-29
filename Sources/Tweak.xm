@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <CommonCrypto/CommonDigest.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <UIKit/UIKit.h>
 #import <jsi/jsi.h>
@@ -348,15 +349,38 @@ static void executePreloads(jsi::Runtime &runtime, NSURL *rainDir)
 
     BOOL needsDownload = !bundle;
 
-    if (!bundle)
+    NSData *embeddedBundle = [NSData dataWithContentsOfFile:
+        [bunnyPatchesBundlePath stringByAppendingPathComponent:@"bundle.js"]];
+    if (embeddedBundle.length > 0 && !loaderConfig.customLoadUrlEnabled)
     {
-        NSURL *embeddedBundleURL = [[NSBundle bundleWithPath:bunnyPatchesBundlePath]
-            URLForResource:@"bundle" withExtension:@"js"];
-        if (embeddedBundleURL)
+        unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+        CC_SHA256(embeddedBundle.bytes, (CC_LONG)embeddedBundle.length, digest);
+        NSData *revision = [NSData dataWithBytes:digest length:sizeof(digest)];
+        NSURL *revisionURL = [rainDir URLByAppendingPathComponent:@"embedded-bundle.sha256"];
+        NSData *cachedRevision = [NSData dataWithContentsOfURL:revisionURL];
+
+        // Seed each packaged revision once so an old cache cannot hide an IPA update.
+        if (!bundle.length || ![revision isEqualToData:cachedRevision])
         {
-            bundle = [NSData dataWithContentsOfURL:embeddedBundleURL];
-            if (bundle) BunnyLog(@"Loaded embedded Rain bundle");
+            bundle = embeddedBundle;
+            NSError *error = nil;
+            if ([bundle writeToURL:bundleFileURL options:NSDataWritingAtomic error:&error])
+            {
+                [[NSFileManager defaultManager] removeItemAtURL:
+                    [rainDir URLByAppendingPathComponent:@"etag.txt"] error:nil];
+                if (![revision writeToURL:revisionURL options:NSDataWritingAtomic error:&error])
+                    BunnyLog(@"Failed to save embedded bundle revision: %@", error);
+            }
+            else
+                BunnyLog(@"Failed to cache embedded Rain bundle: %@", error);
         }
+        needsDownload = NO;
+    }
+
+    if (!bundle && embeddedBundle.length > 0)
+    {
+        bundle = embeddedBundle;
+        BunnyLog(@"Loaded embedded Rain bundle");
     }
 
     if (bundle && bundle.length > 0)
